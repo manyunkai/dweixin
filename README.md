@@ -21,12 +21,12 @@ Wechat development based on Django
 
 以下常用的配置可在 settings 中加入或修改：
 
-* WEIXIN_REDIS_HOST：Redis 服务器地址，默认为 localhost；
-* WEIXIN_REDIS_PORT：Redis 服务器端口，默认为 6379；
-* WEIXIN_REDIS_DB：Redis 数据库号，默认为 0；
-* WEIXIN_REDIS_PASSWORD：Redis 连接密码，默认为空；
+* WEIXIN_REDIS_HOST：Redis 服务器地址，默认为 localhost
+* WEIXIN_REDIS_PORT：Redis 服务器端口，默认为 6379
+* WEIXIN_REDIS_DB：Redis 数据库号，默认为 0
+* WEIXIN_REDIS_PASSWORD：Redis 连接密码，默认为空
 
-* HOST：当前域名。
+* HOST：当前域名
 
 ### 更新历史
 
