@@ -1,0 +1,17 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_static admin_list %}
+{% load admin_urls %}
+
+{% block object-tools-items %}
+	<li>
+		{% if config %}
+			<a href="{% url 'admin:weixin_config_change' config.id %}{% if is_popup %}?_popup=1{% endif %}" class="grp-state-focus">
+				修改配置
+			</a>
+		{% else %}
+			<a href="{% url cl.opts|admin_urlname:'add' %}{% if is_popup %}?_popup=1{% endif %}" class="grp-add-link grp-state-focus">
+				添加配置
+			</a>
+		{% endif %}
+	</li>
+{% endblock %}

@@ -1,0 +1,41 @@
+<xml>
+<ToUserName><![CDATA[{{ to_user }}]]></ToUserName>
+<FromUserName><![CDATA[{{ from_user }}]]></FromUserName>
+<CreateTime>{{ create_time }}</CreateTime>
+<MsgType><![CDATA[{{ msg_type }}]]></MsgType>
+{% if msg_type == 'text' %}
+	<Content><![CDATA[{{ reply.content }}]]></Content>
+{% elif msg_type == 'image' %}
+	<Image>
+	<MediaId>{{ reply.media_id }}</MediaId>
+	</Image>
+{% elif msg_type == 'voice' %}
+	<Voice>
+	<MediaId>{{ reply.media_id }}</MediaId>
+	</Voice>
+{% elif msg_type == 'video' %}
+	<Video>
+	<MediaId>{{ reply.media_id }}</MediaId>
+	<ThumbMediaId>{{ reply.thumb_media_id }}></ThumbMediaId>
+	</Video>
+{% elif msg_type == 'music' %}
+	<Music>
+		<Title><![CDATA[{{ reply.title }}]]></Title>
+		<Description><![CDATA[{{ reply.description }}]]></Description>
+		<MusicUrl><![CDATA[{{ reply.musicurl }}]]></MusicUrl>
+		<HQMusicUrl><![CDATA[{{ reply.hqmusicurl }}]]></HQMusicUrl>
+	</Music>
+{% elif msg_type == 'news' %}
+	<ArticleCount>{{ reply.articles|length }}</ArticleCount>
+	<Articles>
+	{% for item in reply.articles %}
+		<item>
+		<Title><![CDATA[{{ item.title }}]]></Title> 
+		<Description><![CDATA[{{ item.description }}]]></Description>
+        <PicUrl><![CDATA[{{ item.picurl }}]]></PicUrl>
+		<Url><![CDATA[{{ item.url }}]]></Url>
+		</item>
+	{% endfor %}
+	</Articles>
+{% endif %}
+</xml>
