@@ -9,24 +9,24 @@ Wechat development based on Django
 
 ### 包依赖
 
-Pythhon == 2.7.3+，暂时不支持 3.x 版本
-django == 1.6.x，该版本基于 1.6.5 开发
-MySQL-python == 1.2.3
-django-grappelli == 2.5.x，注意不能使用更高或更低版本
-lxml == 3.3.6
-beautifulsoup4 == 4.3.2
-redis == 2.9.1
+* Pythhon == 2.7.3+，暂时不支持 3.x 版本
+* django == 1.6.x，该版本基于 1.6.5 开发
+* MySQL-python == 1.2.3
+* django-grappelli == 2.5.x，注意不能使用更高或更低版本
+* lxml == 3.3.6
+* beautifulsoup4 == 4.3.2
+* redis == 2.9.1
 
 ### 常用配置项
 
 以下常用的配置可在 settings 中加入或修改：
 
-WEIXIN_REDIS_HOST：Redis 服务器地址，默认为 localhost；
-WEIXIN_REDIS_PORT：Redis 服务器端口，默认为 6379；
-WEIXIN_REDIS_DB：Redis 数据库号，默认为 0；
-WEIXIN_REDIS_PASSWORD：Redis 连接密码，默认为空；
+* WEIXIN_REDIS_HOST：Redis 服务器地址，默认为 localhost；
+* WEIXIN_REDIS_PORT：Redis 服务器端口，默认为 6379；
+* WEIXIN_REDIS_DB：Redis 数据库号，默认为 0；
+* WEIXIN_REDIS_PASSWORD：Redis 连接密码，默认为空；
 
-HOST：当前域名。
+* HOST：当前域名。
 
 ### 更新历史
 
