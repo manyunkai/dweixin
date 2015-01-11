@@ -6,7 +6,6 @@ Created on 2015-01-07
 DannyWork Project
 """
 
-
 from django.contrib import admin
 from django.core.exceptions import PermissionDenied
 

@@ -1,3 +1,4 @@
+# -*-coding:utf-8 -*-
 """
 Django settings for wechat_server project.
 
@@ -118,3 +119,8 @@ TEMPLATE_DIRS = (
 HOST = 'http://weixin.dannysite.com'
 
 GRAPPELLI_ADMIN_TITLE = u'DWeixin'
+
+# 异步处理线程配置，如下例所示，('1', 2) 表示启动两个线程来监听 event:pool:processed:1 队列
+ASYNC_MSG_HANDLER_THREADS_CONFIG = (
+    ('1', 2),
+)

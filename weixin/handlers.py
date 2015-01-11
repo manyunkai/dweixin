@@ -23,7 +23,6 @@ def pull_response(ptype, ident, timeout=3):
     event = None
     reply = ''
     if res:
-        print res
         try:
             res = json.loads(res[1])
         except:
@@ -59,7 +58,6 @@ def handle_customer_service_msg(pool, timeout=10):
     res = pull_response('processed', pool, timeout)
     if res.get('status'):
         event = res.get('event')
-        print event.__dict__
         try:
             config = Config.objects.get(owner=event.belonging)
         except Config.DoesNotExist:

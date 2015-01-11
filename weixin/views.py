@@ -6,10 +6,11 @@ Created on 2013-11-18
 DannyWork Project
 """
 
-import hashlib
+import re
 import time
-from bs4 import BeautifulSoup
+import hashlib
 
+from bs4 import BeautifulSoup
 from django.views.generic.base import View
 from django.http.response import HttpResponse
 from django.core.exceptions import PermissionDenied
@@ -18,9 +19,9 @@ from django.utils.decorators import method_decorator
 from django.template.loader import render_to_string
 
 from .models import EventReplyRule, Keyword, Config, Account, User
-from signals import event_adder
+from .signals import event_adder
 from .handlers import pull_response
-from utils.cryptor import WXBizMsgCrypt
+from .utils.cryptor import WXBizMsgCrypt
 
 
 class Weixin(View):
@@ -65,13 +66,14 @@ class Weixin(View):
         txt, obj = txt.lower(), None
         for k in Keyword.get_exact_keywords(str(self.account.id)):
             k = unicode(k, encoding='utf8')
-            if k == txt:
+            if k.startswith('(') and k.endswith(')') and re.match(u'^' + k[1:-1] + u'$', txt) or k == txt:
+                # 如果关键字以“(”开头且已“)”结尾，则作正则表达式处理
                 obj = Keyword.objects.filter(owner=self.account, name=k)
                 obj = obj[0] if obj else None
         if not obj:
             for k in Keyword.get_iexact_keywords(str(self.account.id)):
                 k = unicode(k, encoding='utf8')
-                if k in txt:
+                if k.startswith('(') and k.endswith(')') and re.search(k[1:-1], txt) or k in txt:
                     obj = Keyword.objects.filter(owner=self.account, name=k)
                     obj = obj[0] if obj else None
         return obj.rule if obj and obj.rule.is_valid else None
@@ -100,7 +102,6 @@ class Weixin(View):
                     event_adder.send(sender=self, **event_ctx)
 
                     res = pull_response('thread', ident)
-                    print res
                     if res.get('status', False):
                         ctx = {
                             'to_user': soup.FromUserName.text,
@@ -153,9 +154,6 @@ class Weixin(View):
             }
             event_adder.send(sender=self, **event_ctx)
 
-        print '***'
-        print reply
-        print '***'
         return reply
 
     def handle_msg(self, soup):
@@ -234,10 +232,6 @@ class Weixin(View):
     def post(self, request):
         if not self.validate(request):
             raise PermissionDenied
-
-        print '---'
-        print request.body
-        print '---'
 
         soup = self.get_soup(request.GET.get('encrypt_type', 'raw'),
                              request.GET.get('msg_signature', ''),

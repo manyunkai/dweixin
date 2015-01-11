@@ -12,7 +12,6 @@ from django.core.urlresolvers import reverse
 
 from ..models import Button, Config
 from ..mixins import PullMenu, PushMenu
-
 from .base import OwnerBasedModelAdmin
 
 
@@ -131,7 +130,6 @@ class ButtonAdmin(OwnerBasedModelAdmin):
                     top_dict['sub_button'] = sub_buttons
                 buttons.append(top_dict)
 
-            print buttons
             handler = PushMenu(config, {'button': buttons})
             try:
                 result = handler.push()

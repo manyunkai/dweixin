@@ -7,9 +7,11 @@ import hashlib
 import time
 import struct
 import socket
-import errors
-from Crypto.Cipher import AES
 import xml.etree.cElementTree as ET
+
+from Crypto.Cipher import AES
+
+import errors
 
 
 class FormatException(Exception):

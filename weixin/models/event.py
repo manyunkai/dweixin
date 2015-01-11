@@ -8,10 +8,10 @@ DannyWork Project
 
 import json
 import time
-import datetime
 
 from django.db import models
 from django.db.models.signals import pre_save
+from django.utils import timezone
 
 from .auth import Account
 from .user import User
@@ -70,7 +70,7 @@ THREADING_POOL_PREFIX = 'event:pool:thread:{0}'
 def event_pre_save(sender=None, **kwargs):
     instance = kwargs.get('instance')
     if not instance.processed_status == 'W':
-        instance.processed_at = datetime.datetime.now()
+        instance.processed_at = timezone.now()
 
 
 def add_event(sender=None, **kwargs):
