@@ -25,31 +25,59 @@ class ButtonAdmin(OwnerBasedModelAdmin):
         from django.conf.urls import patterns, url
 
         info = self.model._meta.app_label, self.model._meta.module_name
-        return patterns('',
-                        url(r'^pull_menu/$',
-                            self.admin_site.admin_view(self.pull_menu),
-                            name='%s_%s_pull_menu' % info),
-                        url(r'^push_menu/$',
-                            self.admin_site.admin_view(self.push_menu),
-                            name='%s_%s_push_menu' % info),
+        return patterns(
+            '',
+            url(r'^pull_menu/$', self.admin_site.admin_view(self.pull_menu), name='%s_%s_pull_menu' % info),
+            url(r'^push_menu/$', self.admin_site.admin_view(self.push_menu), name='%s_%s_push_menu' % info),
         ) + super(ButtonAdmin, self).get_urls()
 
+    def get_field_queryset(self, db, db_field, request):
+        if db_field.name == 'agent':
+            return db_field.rel.to._default_manager.using(db).complex_filter(db_field.rel.limit_choices_to)\
+                .filter(config=self.get_config(request))
+        return super(ButtonAdmin, self).get_field_queryset(db, db_field, request)
+
     def get_form(self, request, obj=None, **kwargs):
+        config = self.get_config(request)
+        if config and config.type == 'Q':
+            self.fields = ['agent', 'name', 'type', 'parent', 'key', 'url', 'position']
+        else:
+            self.fields = ['name', 'type', 'parent', 'key', 'url', 'position']
+
         form = super(ButtonAdmin, self).get_form(request, obj, **kwargs)
         form.base_fields['parent'].queryset = form.base_fields['parent'].queryset.filter(parent=None)
         return form
 
     def get_config(self, request):
         try:
-            return Config.objects.get(owner=self.account(request))
-        except Config.DoesNotExist:
-            return None
+            return Config.objects.filter(owner=self.account(request))[0]
+        except IndexError:
+            pass
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['config'] = self.get_config(request)
+        return super(ButtonAdmin, self).changelist_view(request, extra_context)
 
     def pull_menu(self, request, from_url=''):
         config = self.get_config(request)
         account = self.account(request, get_object=True)
         if config:
             handle = PullMenu(config)
+            if config.type == 'Q':
+                try:
+                    agent_id = int(request.GET.get('agent_id'))
+                except (TypeError, ValueError):
+                    messages.error(request, u'无效的企业应用。')
+                    return HttpResponseRedirect(reverse('admin:weixin_button_changelist'))
+                if not config.qyagent_set.filter(agent_id=agent_id).exists():
+                    messages.error(request, u'无效的企业应用。')
+                    return HttpResponseRedirect(reverse('admin:weixin_button_changelist'))
+
+                handle.params = {'agentid': agent_id}
+            else:
+                agent_id = None
+
             try:
                 status, data = handle.pull()
             except BaseException, e:
@@ -57,11 +85,21 @@ class ButtonAdmin(OwnerBasedModelAdmin):
             else:
                 if status:
                     if data.get('button'):
-                        Button.objects.filter(owner=account).delete()
+                        qs = Button.objects.filter(owner=account)
+                        if config.type == 'Q':
+                            qs = qs.filter(agent_id=int(request.GET.get('agent_id')))
+                        qs.delete()
 
                     top_i = 1
                     for top in data.get('button', []):
-                        button = Button.objects.create(owner=account, name=top['name'], position=top_i)
+                        params = {
+                            'owner': account,
+                            'name': top['name'],
+                            'position': top_i
+                        }
+                        if agent_id:
+                            params['agent_id'] = agent_id
+                        button = Button.objects.create(**params)
                         if top.get('sub_button'):
                             sub_i = 1
                             for sub in top.get('sub_button'):
@@ -78,6 +116,8 @@ class ButtonAdmin(OwnerBasedModelAdmin):
                                     sub_button.url = sub.get('url', '')
                                 sub_button.parent = button
                                 sub_button.position = sub_i
+                                if agent_id:
+                                    sub_button.agent_id = agent_id
                                 sub_button.save()
                                 sub_i += 1
                         else:
@@ -100,8 +140,21 @@ class ButtonAdmin(OwnerBasedModelAdmin):
     def push_menu(self, request, from_url=''):
         config = self.get_config(request)
         if config:
+            query = {
+                'owner__id': self.account(request),
+                'parent': None,
+            }
+            if config.type == 'Q':
+                try:
+                    agent = config.qyagent_set.filter(agent_id=request.GET.get('agent_id'))[0]
+                except (IndexError, TypeError, ValueError):
+                    messages.error(request, u'无效的企业应用。')
+                    return HttpResponseRedirect(reverse('admin:weixin_button_changelist'))
+
+                query['agent'] = agent
+
             buttons = []
-            for top in Button.objects.filter(owner__id=self.account(request), parent=None).order_by('position'):
+            for top in Button.objects.filter(**query).order_by('position'):
                 top_dict = {
                     'name': top.name
                 }
@@ -131,6 +184,8 @@ class ButtonAdmin(OwnerBasedModelAdmin):
                 buttons.append(top_dict)
 
             handler = PushMenu(config, {'button': buttons})
+            if config.type == 'Q':
+                handler.params = {'agentid': agent.id}
             try:
                 result = handler.push()
             except BaseException, e:

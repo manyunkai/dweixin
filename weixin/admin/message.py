@@ -6,12 +6,16 @@ Created on 2013-11-20
 DannyWork Project
 """
 
+__author__ = 'Danny'
+
+import copy
+
 from django.contrib import admin
 from django.core.urlresolvers import reverse
 
 from ..models import TextMsg, NewsMsg, NewsMsgItem,\
     NewsMsgItemMapping, Keyword, EventReplyRule, MsgReplyRule, MediaMsg,\
-    MediaItem
+    MediaItem, Config
 from ..forms import NewsMsgItemForm, TextMsgForm, MediaItemForm
 from ..forms.message import EventReplyRuleForm
 from .base import OwnerBasedModelAdmin
@@ -32,6 +36,15 @@ class MsgReplyRuleAdmin(OwnerBasedModelAdmin):
     list_editable = ['is_valid']
     inlines = [KeywordInline]
 
+    def get_list_display(self, request):
+        list_display = copy.copy(self.list_display)
+
+        config = self.get_config(request)
+        if config and config.type == 'Q':
+            list_display.insert(1, 'agent')
+
+        return list_display
+
     def related_object(self, obj):
         if obj.msg_object:
             info = obj.msg_object._meta.app_label, obj.msg_object._meta.module_name
@@ -41,15 +54,40 @@ class MsgReplyRuleAdmin(OwnerBasedModelAdmin):
     related_object.short_description = u'关联消息'
     related_object.allow_tags = True
 
+    def get_field_queryset(self, db, db_field, request):
+        if db_field.name == 'agent':
+            return db_field.rel.to._default_manager.using(db).complex_filter(db_field.rel.limit_choices_to)\
+                .filter(config=self.get_config(request))
+        return super(MsgReplyRuleAdmin, self).get_field_queryset(db, db_field, request)
 
-class KeywordAdmin(OwnerBasedModelAdmin):
-    fields = ['name', 'exact_match']
-    list_display = ['name', 'exact_match', 'related_object']
+    def get_form(self, request, obj=None, **kwargs):
+        config = self.get_config(request)
+        if config and config.type == 'Q':
+            self.fields = ['agent', 'name', 'res_msg_type', 'pool', 'msg_object_content_type',
+                           'msg_object_object_id', 'is_valid']
+        else:
+            self.fields = ['name', 'res_msg_type', 'pool', 'msg_object_content_type',
+                           'msg_object_object_id', 'is_valid']
+        form = super(MsgReplyRuleAdmin, self).get_form(request, obj, **kwargs)
+        if hasattr(form.base_fields, 'agent'):
+            form.base_fields['agent'].queryset = form.base_fields['agent'].queryset.filter(config=config)
+        return form
 
-    def related_object(self, obj):
-        return u'<a href="{0}">{1}</a>'.format(reverse('admin:weixin_msgreplyrule_change', args=[obj.rule.id]), obj.rule.name)
-    related_object.short_description = u'关联规则'
-    related_object.allow_tags = True
+    def get_config(self, request):
+        try:
+            return Config.objects.filter(owner=self.account(request))[0]
+        except IndexError:
+            pass
+
+
+# class KeywordAdmin(OwnerBasedModelAdmin):
+#     fields = ['name', 'exact_match']
+#     list_display = ['name', 'exact_match', 'related_object']
+#
+#     def related_object(self, obj):
+#         return u'<a href="{0}">{1}</a>'.format(reverse('admin:weixin_msgreplyrule_change', args=[obj.rule.id]), obj.rule.name)
+#     related_object.short_description = u'关联规则'
+#     related_object.allow_tags = True
 
 
 class TextMsgAdmin(OwnerBasedModelAdmin):
@@ -104,6 +142,17 @@ class EventReplyAdmin(OwnerBasedModelAdmin):
     }
     form = EventReplyRuleForm
 
+    config = None
+
+    def get_list_display(self, request):
+        list_display = copy.copy(self.list_display)
+
+        config = self.get_config(request)
+        if config and config.type == 'Q':
+            list_display.insert(1, 'agent')
+
+        return list_display
+
     def related_object(self, obj):
         if obj.msg_object:
             info = obj.msg_object._meta.app_label, obj.msg_object._meta.module_name
@@ -112,6 +161,32 @@ class EventReplyAdmin(OwnerBasedModelAdmin):
         return ''
     related_object.short_description = u'关联消息'
     related_object.allow_tags = True
+
+    def get_form(self, request, obj=None, **kwargs):
+        config = self.get_config(request)
+        if config and config.type == 'Q':
+            self.fields = ['agent', 'name', 'event_type', 'event_key', 'res_msg_type', 'pool',
+                           'msg_object_content_type', 'msg_object_object_id']
+        else:
+            self.fields = ['name', 'event_type', 'event_key', 'res_msg_type', 'pool',
+                           'msg_object_content_type', 'msg_object_object_id']
+
+        form = super(EventReplyAdmin, self).get_form(request, obj, **kwargs)
+        if hasattr(form.base_fields, 'agent'):
+            form.base_fields['agent'].queryset = form.base_fields['agent'].queryset.filter(config=config)
+        return form
+
+    def get_field_queryset(self, db, db_field, request):
+        if db_field.name == 'agent':
+            return db_field.rel.to._default_manager.using(db).complex_filter(db_field.rel.limit_choices_to)\
+                .filter(config=self.get_config(request))
+        return super(EventReplyAdmin, self).get_field_queryset(db, db_field, request)
+
+    def get_config(self, request):
+        try:
+            return Config.objects.filter(owner=self.account(request))[0]
+        except IndexError:
+            pass
 
 
 class MediaItemAdmin(OwnerBasedModelAdmin):
@@ -138,7 +213,7 @@ class MediaMsgAdmin(OwnerBasedModelAdmin):
         return True
 
 
-admin.site.register(Keyword, KeywordAdmin)
+# admin.site.register(Keyword, KeywordAdmin)
 admin.site.register(TextMsg, TextMsgAdmin)
 admin.site.register(NewsMsg, NewsMsgAdmin)
 admin.site.register(MediaMsg, MediaMsgAdmin)

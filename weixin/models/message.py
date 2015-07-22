@@ -10,12 +10,13 @@ import uuid
 import os
 
 from django.db import models
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import pre_delete, post_save, pre_save
 from django.contrib.contenttypes import generic
 
 from ..utils.cache import connection
-from .auth import Account
+from .auth import Account, QyAgent
 
 
 RES_MSG_TYPE = (
@@ -61,9 +62,9 @@ class NewsMsgItem(BaseModel):
 
     title = models.CharField(u'标题', max_length=100)
     description = models.CharField(u'描述', max_length=2000)
-    pic_large = models.ImageField(upload_to=news_large_pic_rename, verbose_name=u'大图', blank=True,
+    pic_large = models.ImageField(upload_to=news_large_pic_rename, verbose_name=u'大图',
                                   help_text=u'为保证显示效果，请上传大小为360*200（或同比例）的图片')
-    pic_small = models.ImageField(upload_to=news_small_pic_rename, verbose_name=u'小图', blank=True,
+    pic_small = models.ImageField(upload_to=news_small_pic_rename, verbose_name=u'小图',
                                   help_text=u'为保证显示效果，请上传大小为200*200（或同比例）的图片')
     url = models.URLField(u'跳转链接')
 
@@ -176,6 +177,8 @@ class MsgReplyRule(BaseModel):
     消息响应规则
     """
 
+    agent = models.ForeignKey(QyAgent, verbose_name=u'企业应用', null=True, blank=True)
+
     # 消息响应类型
     res_msg_type = models.CharField(u'响应处理方式', max_length=10, choices=RES_MSG_TYPE,
                                     help_text=u'内部处理表示由本应用通过指定的返回内容对消息进行响应，'
@@ -217,25 +220,34 @@ class Keyword(BaseModel):
         return self.name
 
     @classmethod
-    def get_exact_keywords(cls, account_id):
-        cache_key = '{0}:keywords:exact'.format(account_id)
+    def get_exact_keywords(cls, account_id, agent_id=0):
+        # 对于企业号来说，agent_id 为应用 ID
+        # 对于公众号来说，agent_id 始终置为 0
+
+        cache_key = '{0}:keywords:exact:{1}'.format(account_id, agent_id)
         if not connection.exists(cache_key):
-            keywords = cls._default_manager.values_list('name', flat=True).filter(exact_match=True)
-            keywords = [name.lower() for name in keywords]
+            qs = cls._default_manager.values_list('name', flat=True).filter(exact_match=True, owner_id=account_id)
+            qs = qs.filter(rule__agent__agent_id=agent_id) if agent_id else qs.filter(rule__agent_id=None)
+            keywords = [name.lower() for name in qs]
             if keywords:
+                # 多值传入，仅兼容 Redis 2.6 及以上版本
                 connection.sadd(cache_key, *keywords)
-            # TODO ... 设置过期
+                connection.expire(cache_key, settings.KEYWORDS_CACHE_TIMEOUT)
         return connection.smembers(cache_key)
 
     @classmethod
-    def get_iexact_keywords(cls, account_id):
-        cache_key = '{0}:keywords:iexact'.format(account_id)
+    def get_iexact_keywords(cls, account_id, agent_id=0):
+        # 对于企业号来说，agent_id 为应用 ID
+        # 对于公众号来说，agent_id 始终置为 0
+
+        cache_key = '{0}:keywords:iexact:{1}'.format(account_id, agent_id)
         if not connection.exists(cache_key):
-            keywords = cls._default_manager.values_list('name', flat=True).filter(exact_match=False)
-            keywords = [name.lower() for name in keywords]
+            qs = cls._default_manager.values_list('name', flat=True).filter(exact_match=False, owner_id=account_id)
+            qs = qs.filter(rule__agent__agent_id=agent_id) if agent_id else qs.filter(rule__agent_id=None)
+            keywords = [name.lower() for name in qs]
             if keywords:
                 connection.sadd(cache_key, *keywords)
-            # TODO ... 设置过期
+                connection.expire(cache_key, settings.KEYWORDS_CACHE_TIMEOUT)
         return connection.smembers(cache_key)
 
     class Meta:
@@ -245,8 +257,9 @@ class Keyword(BaseModel):
 
 
 def _get_cache_key(instance):
-    key_prefix = '{0}:keywords:exact' if instance.exact_match else '{0}:keywords:iexact'
-    return key_prefix.format(instance.owner.id)
+    key_prefix = '{0}:keywords:exact:{1}' if instance.exact_match else '{0}:keywords:iexact:{1}'
+    return key_prefix.format(instance.owner.id, instance.rule.agent.agent_id if instance.rule.agent else 0)
+
 
 def keyword_pre_save(sender, **kwargs):
     instance = kwargs.get('instance')
@@ -256,18 +269,25 @@ def keyword_pre_save(sender, **kwargs):
     except Keyword.DoesNotExist:
         pass
     else:
-        connection.srem(_get_cache_key(prev), prev.name.lower())
+        cache_key = _get_cache_key(prev)
+        if connection.exists(cache_key):
+            connection.srem(cache_key, prev.name.lower())
 
 
 def keyword_post_save(sender, **kwargs):
     instance = kwargs.get('instance')
-    connection.sadd(_get_cache_key(instance), instance.name.lower())
+
+    cache_key = _get_cache_key(instance)
+    if connection.exists(cache_key):
+        connection.sadd(cache_key, instance.name.lower())
 
 
 def keyword_pre_delete(sender, **kwargs):
     instance = kwargs.get('instance')
-    if not Keyword.objects.filter(name=instance.name, exact_match=instance.exact_match).exclude(id=instance.id).exists():
-        connection.srem(_get_cache_key(instance), instance.name.lower())
+    cache_key = _get_cache_key(instance)
+    if not Keyword.objects.filter(name=instance.name, exact_match=instance.exact_match)\
+            .exclude(id=instance.id).exists() and connection.exists(cache_key):
+        connection.srem(cache_key, instance.name.lower())
 
 pre_save.connect(keyword_pre_save, sender=Keyword)
 post_save.connect(keyword_post_save, sender=Keyword)
@@ -289,6 +309,8 @@ class EventReplyRule(BaseModel):
     """
     事件响应规则
     """
+
+    agent = models.ForeignKey(QyAgent, verbose_name=u'企业应用', null=True, blank=True)
 
     event_type = models.CharField(u'事件类型', choices=EVENT_TYPE, max_length=20)
     event_key = models.CharField(u'事件KEY值', max_length=50, blank=True)

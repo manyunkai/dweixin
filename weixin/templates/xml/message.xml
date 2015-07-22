@@ -23,8 +23,8 @@
 	{% with reply.msg_object.item as media %}
 		<Title><![CDATA[{{ media.title }}]]></Title>
 		<Description><![CDATA[{{ media.description }}]]></Description>
-		<MusicUrl><![CDATA[{{ media.file.url }}]]></MusicUrl>
-		<HQMusicUrl><![CDATA[{{ media.file.url }}]]></HQMusicUrl>
+		<MusicUrl><![CDATA[{{ media.file.url|safe }}]]></MusicUrl>
+		<HQMusicUrl><![CDATA[{{ media.file.url|safe }}]]></HQMusicUrl>
 	{% endwith %}
 	</Music>
 {% elif msg_type == 'news' %}
@@ -35,11 +35,11 @@
 		<Title><![CDATA[{{ item.title }}]]></Title> 
 		<Description><![CDATA[{{ item.description }}]]></Description>
 		{% if forloop.first %}
-			<PicUrl><![CDATA[{{ item.pic_large.url }}]]></PicUrl>
+			<PicUrl><![CDATA[{{ item.pic_large.url|safe }}]]></PicUrl>
 		{% else %}
-			<PicUrl><![CDATA[{{ item.pic_small.url }}]]></PicUrl>
+			<PicUrl><![CDATA[{{ item.pic_small.url|safe }}]]></PicUrl>
 		{% endif %}
-		<Url><![CDATA[{{ item.url }}]]></Url>
+		<Url>{% with item.url as url %}<![CDATA[{{ url|safe }}{% if '?' in url %}&{% else %}?{% endif %}openid={{ to_user }}{% if extra_params %}&{{ extra_params }}{% endif %}]]>{% endwith %}</Url>
 		</item>
 	{% endfor %}
 	</Articles>

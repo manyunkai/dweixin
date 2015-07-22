@@ -15,6 +15,7 @@ from django.utils import timezone
 
 from .auth import Account
 from .user import User
+from .track import LocTrack
 from ..signals import event_adder
 from ..utils.cache import connection
 
@@ -42,7 +43,7 @@ class Event(models.Model):
 
     type = models.CharField(u'类型', max_length=3, choices=EVENT_TYPE)
     pool = models.CharField(u'队列池编号', max_length=4, null=True, blank=True)
-    ident = models.CharField(u'线程编号', max_length=32, null=True, blank=True)
+    ident = models.CharField(u'线程编号', max_length=128, null=True, blank=True)
 
     belonging = models.ForeignKey(Account, verbose_name=u'账户')
     from_user = models.ForeignKey(User, verbose_name=u'微信用户', blank=True, null=True)
@@ -54,7 +55,7 @@ class Event(models.Model):
     processed_message = models.CharField(u'状态消息', max_length=64, null=True, blank=True)
     processed_at = models.DateTimeField(u'处理时间', null=True, blank=True)
 
-    reply = models.CharField(u'返回内容', max_length=3000, null=True, blank=True)
+    reply = models.CharField(u'返回内容', max_length=10000, null=True, blank=True)
 
     class Meta:
         app_label = 'weixin'
@@ -89,7 +90,13 @@ def add_event(sender=None, **kwargs):
         'user_message': user_message,
         'created': time.mktime(event.created.timetuple())
     }
-    connection.lpush(PENDING_POOL_PREFIX.format(event.pool), json.dumps(data))
+
+    if not event.type == 'ISP':
+        loc = LocTrack.objects.filter(user=event.from_user).order_by('-created')[:1]
+        if loc:
+            loc = loc[0]
+            data['location'] = [loc.lng, loc.lat]
+        connection.lpush(PENDING_POOL_PREFIX.format(event.pool), json.dumps(data))
 
 
 pre_save.connect(event_pre_save, sender=Event)

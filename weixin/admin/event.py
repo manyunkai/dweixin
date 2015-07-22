@@ -9,7 +9,7 @@ DannyWork Project
 from django.contrib import admin
 from django.core.exceptions import PermissionDenied
 
-from ..models import Event
+from ..models import Event, Config
 
 
 class EventAdmin(admin.ModelAdmin):

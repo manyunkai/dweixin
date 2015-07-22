@@ -15,7 +15,7 @@ from ..models import Account
 
 
 class AccountAdmin(admin.ModelAdmin):
-    list_display = ['username', 'url', 'created', 'is_valid']
+    list_display = ['username', 'url', 'created', 'is_valid', 'uuid']
     fields = ['username', 'is_valid']
     actions = None
 

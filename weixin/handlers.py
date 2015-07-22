@@ -36,7 +36,7 @@ def pull_response(ptype, ident, timeout=3):
                 message = 'Event not found.'
             else:
                 if res.get('status', 0):
-                    reply = res.get('reply', '')
+                    reply = res.get('reply', {})
                     status = True
                     message = 'Success.'
                 else:
@@ -59,8 +59,8 @@ def handle_customer_service_msg(pool, timeout=10):
     if res.get('status'):
         event = res.get('event')
         try:
-            config = Config.objects.get(owner=event.belonging)
-        except Config.DoesNotExist:
+            config = Config.objects.filter(owner=event.belonging)[0]
+        except IndexError:
             return False, 'Config error for account {0}'.format(res.get('account').username)
 
         content = res.get('reply')

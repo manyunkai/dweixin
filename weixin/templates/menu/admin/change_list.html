@@ -8,14 +8,29 @@
 			增加菜单
 		</a>
 	</li>
-	<li>
-		<a href="{% url 'admin:weixin_button_pull_menu' %}{% if is_popup %}?_popup=1{% endif %}" class="grp-state-focus">
-			从微信服务器读取菜单
-		</a>
-	</li>
-	<li>
-		<a href="{% url 'admin:weixin_button_push_menu' %}{% if is_popup %}?_popup=1{% endif %}" class="grp-state-focus">
-			推送本地菜单至微信服务器
-		</a>
-	</li>
+	{% if config.type == 'M' %}
+		<li>
+			<a href="{% url 'admin:weixin_button_pull_menu' %}{% if is_popup %}?_popup=1{% endif %}" class="grp-state-focus">
+				拉取菜单
+			</a>
+		</li>
+		<li>
+			<a href="{% url 'admin:weixin_button_push_menu' %}{% if is_popup %}?_popup=1{% endif %}" class="grp-state-focus">
+				推送菜单
+			</a>
+		</li>
+	{% else %}
+		{% for agent in config.qyagent_set.all %}
+			<li>
+				<a href="{% url 'admin:weixin_button_pull_menu' %}?agent_id={{ agent.agent_id }}{% if is_popup %}&_popup=1{% endif %}" class="grp-state-focus">
+					拉取 {{ agent.name }} 菜单
+				</a>
+			</li>
+			<li>
+				<a href="{% url 'admin:weixin_button_push_menu' %}?agent_id={{ agent.agent_id }}{% if is_popup %}&_popup=1{% endif %}" class="grp-state-focus">
+					推送 {{ agent.name }} 菜单
+				</a>
+			</li>
+		{% endfor %}
+	{% endif %}
 {% endblock %}

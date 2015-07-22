@@ -22,8 +22,8 @@
 	<Music>
 		<Title><![CDATA[{{ reply.title }}]]></Title>
 		<Description><![CDATA[{{ reply.description }}]]></Description>
-		<MusicUrl><![CDATA[{{ reply.musicurl }}]]></MusicUrl>
-		<HQMusicUrl><![CDATA[{{ reply.hqmusicurl }}]]></HQMusicUrl>
+		<MusicUrl><![CDATA[{{ reply.musicurl|safe }}]]></MusicUrl>
+		<HQMusicUrl><![CDATA[{{ reply.hqmusicurl|safe }}]]></HQMusicUrl>
 	</Music>
 {% elif msg_type == 'news' %}
 	<ArticleCount>{{ reply.articles|length }}</ArticleCount>
@@ -32,8 +32,8 @@
 		<item>
 		<Title><![CDATA[{{ item.title }}]]></Title> 
 		<Description><![CDATA[{{ item.description }}]]></Description>
-        <PicUrl><![CDATA[{{ item.picurl }}]]></PicUrl>
-		<Url><![CDATA[{{ item.url }}]]></Url>
+        <PicUrl><![CDATA[{{ item.picurl|safe }}]]></PicUrl>
+		<Url>{% with item.url as url %}<![CDATA[{{ url|safe }}{% if '?' in url %}&{% else %}?{% endif %}openid={{ to_user }}{% if extra_params %}&{{ extra_params }}{% endif %}]]>{% endwith %}</Url>
 		</item>
 	{% endfor %}
 	</Articles>

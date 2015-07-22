@@ -29,8 +29,8 @@ class OwnerBasedModelAdmin(admin.ModelAdmin):
 
     def init_account(self, request):
         try:
-            account = Account.objects.get(username=request.user.username)
-        except Account.DoesNotExist:
+            account = Account.objects.filter(username=request.user.username)[0]
+        except IndexError:
             account = None
             if request.user.is_superuser:
                 messages.info(request, u'您当前没有账户，无权添加但可编辑。')
